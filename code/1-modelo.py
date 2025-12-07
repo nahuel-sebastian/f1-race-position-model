@@ -1,7 +1,8 @@
 import pandas as pd
 import numpy as np
+import matplotlib
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-
 from sklearn.ensemble import RandomForestRegressor, HistGradientBoostingRegressor
 from sklearn.metrics import mean_absolute_error
 from xgboost import XGBRegressor
@@ -315,7 +316,8 @@ plt.yticks(range(1, 21))
 plt.legend()
 plt.grid(True, linestyle=':', alpha=0.6)
 plt.tight_layout()
-plt.show()
+plt.savefig("plots/hgb_pred_vs_real_2024.png")
+plt.close()
 
 # ============================================================
 # 12. IMPORTANCIA POR PERMUTACIÓN (sobre HGB)
@@ -336,26 +338,37 @@ plt.barh(X_train_final.columns[sorted_idx][::-1],
 plt.title('Top 10 variables importantes (Permutation Importance, HistGB)', fontsize=14)
 plt.xlabel('Impacto medio en el error', fontsize=12)
 plt.tight_layout()
-plt.show()
+plt.savefig("plots/hgb_permutation_importance_top10.png")
+plt.close()
 
 print("\nTop 10 factores (Permutation Importance):")
 for i in sorted_idx:
     print(f"{X_train_final.columns[i]}: {r.importances_mean[i]:.4f}")
 
 # ============================================================
-# 13. ANÁLISIS SHAP (HistGB)
+# 13. ANÁLISIS SHAP (XGBoost)
 # ============================================================
 
-print("\n=== 13) Análisis SHAP (HistGradientBoosting) ===")
-explainer = shap.Explainer(hgb, X_train_final)
-shap_values = explainer(X_test_final)
+print("\n=== 13) Análisis SHAP (XGBRegressor) ===")
+
+# Nos aseguramos de que los datos sean float32 (sin dtype object)
+X_train_shap = X_train_final.astype(np.float32)
+X_test_shap  = X_test_final.astype(np.float32)
+
+explainer = shap.TreeExplainer(xgb)
+shap_values = explainer(X_test_shap)
 
 # Resumen global
 plt.figure(figsize=(12, 8))
-plt.title("SHAP summary plot - impacto de variables en Position")
-shap.summary_plot(shap_values, X_test_final, show=False)
-plt.show()
+shap.summary_plot(shap_values, X_test_shap, show=False)
+plt.title("SHAP summary plot - impacto de variables en Position (XGBoost)")
+plt.tight_layout()
+plt.savefig("plots/shap_summary_xgb.png")
+plt.close()
 
 # Dependencia de AvgPitStopTime
-shap.dependence_plot("AvgPitStopTime", shap_values.values, X_test_final,
-                     interaction_index=None)
+shap.dependence_plot("AvgPitStopTime", shap_values.values, X_test_shap,
+                     interaction_index=None, show=False)
+plt.tight_layout()
+plt.savefig("plots/shap_dependence_AvgPitStopTime_xgb.png")
+plt.close()
