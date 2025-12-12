@@ -32,7 +32,7 @@ print("=== 1. CARGA Y LIMPIEZA ===")
 try:
     datos = pd.read_csv("data/f1_pitstops_2018_2024.csv", sep=",")
 except:
-    print("❌ Archivo no encontrado. Crea 'data/f1_pitstops_2018_2024.csv'")
+    print(" Archivo no encontrado. Crea 'data/f1_pitstops_2018_2024.csv'")
     exit()
 print(f"Tamaño inicial: {datos.shape}")
 
@@ -82,7 +82,7 @@ high_corr_pairs = [(corr_matrix.columns[i], corr_matrix.columns[j], corr_matrix.
                   for j in range(i+1, len(corr_matrix.columns)) 
                   if abs(corr_matrix.iloc[i, j]) > 0.8]
 for var1, var2, corr in high_corr_pairs:
-    print(f"🔴 {var1} ↔ {var2}: {corr:.3f}")
+    print(f" {var1} ↔ {var2}: {corr:.3f}")
 print("✓ correlation_matrix.png")
 
 # 4. PREPROCESADOR OPTIMIZADO
@@ -166,7 +166,7 @@ for name, res in resultados_modelos.items():
 
 mejor_modelo_nombre = min(resultados_modelos, key=lambda k: resultados_modelos[k]['mae_cv'])
 mejor_pipe = resultados_modelos[mejor_modelo_nombre]['pipe']
-print(f"\n🏆 GANADOR: {mejor_modelo_nombre}")
+print(f"\n GANADOR: {mejor_modelo_nombre}")
 
 # 7. FEATURE IMPORTANCE
 print(f"\n=== FEATURE IMPORTANCE {mejor_modelo_nombre} ===")
@@ -209,7 +209,7 @@ plt.figure(figsize=(10, 8))
 plt.scatter(y_test, y_pred, alpha=0.6, color='royalblue', s=50, edgecolors='darkblue', linewidth=0.5)
 plt.plot([1, 20], [1, 20], 'r--', lw=3, label='Perfecto (pred = real)', alpha=0.9)
 
-# 🎯 LÍNEAS DE MARGEN ±1 POSICIONES
+#  LÍNEAS DE MARGEN ±1 POSICIONES
 plt.plot([1, 20], [2, 21], 'orange', lw=2, linestyle=':', alpha=0.8, label='Margen +1')
 plt.plot([1, 20], [0, 19], 'orange', lw=2, linestyle=':', alpha=0.8, label='Margen -1')
 
