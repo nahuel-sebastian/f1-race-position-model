@@ -1,3 +1,12 @@
+# MODELO EXPLICATIVO DE PREDICCIÓN DE POSICIÓN EN CARRERA DE F1 (2018-2024)
+
+# Grupo 9 de practicas
+# Javier Rosales Lozano
+# Manuel Roldán Matea
+# Nahuel Sebastián Vargas
+# Alejandro Rodríguez García
+
+# Importacion de librerias
 import pandas as pd
 import numpy as np
 import matplotlib
@@ -19,16 +28,14 @@ from scipy.stats import randint, uniform
 import warnings
 import os
 
+# Configuraciones iniciales
 warnings.filterwarnings("ignore", category=FutureWarning)
 os.makedirs("plots", exist_ok=True)
-
 SEED = 6967
 np.random.seed(SEED)
 
-
-
 # CARGA Y LIMPIEZA
-print(" CARGA Y LIMPIEZA ")
+print("CARGA Y LIMPIEZA")
 try:
     datos = pd.read_csv("data/f1_pitstops_2018_2024.csv", sep=",")
 except:
@@ -83,7 +90,7 @@ high_corr_pairs = [(corr_matrix.columns[i], corr_matrix.columns[j], corr_matrix.
                   for j in range(i+1, len(corr_matrix.columns)) 
                   if abs(corr_matrix.iloc[i, j]) > 0.8]
 for var1, var2, corr in high_corr_pairs:
-    print(f" {var1} ↔ {var2}: {corr:.3f}")
+    print(f" {var1} con {var2}: {corr:.3f}")
 print("correlation_matrix.png")
 
 # PREPROCESADOR OPTIMIZADO
@@ -119,7 +126,7 @@ preprocesador = ColumnTransformer([("num", numerical_final, num_cols),
                                   ("cat", categorical_final, cat_cols)], sparse_threshold=0)
 
 # ENTRENAMIENTO COMPLETO 
-print("\nENTRENAMIENTO MODELOS")
+print("\nENTRENAMIENTO DE MODELOS")
 def exact_acc(y_t, y_p): return np.mean(y_t == np.round(y_p))
 def tol_acc(y_t, y_p): return np.mean(np.abs(y_t - np.round(y_p)) <= 1)
 scorer_exact = make_scorer(exact_acc)
@@ -191,19 +198,16 @@ if mejor_modelo_nombre == 'HGB':
 else:
     importancias = pd.Series(model_step.feature_importances_, index=feat_names[:len(model_step.feature_importances_)])
 
-#Plot de las 10 variables más importantes del modelo
-
+# Plot de las 10 variables más importantes del modelo
 top10 = importancias.nlargest(10)
 for i, (var, imp) in enumerate(top10.items(), 1):
     print(f"{i:2d}. {str(var)[:40]} {imp:.4f}")
-
 top10.plot(kind='barh', color='skyblue')
 plt.title(f"Top 10 Variables - {mejor_modelo_nombre}")
 plt.xlabel('Importancia')
 plt.tight_layout()
 plt.savefig(f"plots/feature_importance_{mejor_modelo_nombre.lower()}.png", dpi=300)
 plt.close()
-
 
 # Test final con el mejor modelo para 2024 y gráfico de predicción vs realidad con margen visual ±1
 print("\nTEST 2024 CON MARGEN VISUAL ±1 ")
@@ -212,7 +216,6 @@ mae_test = mean_absolute_error(y_test, y_pred)
 print(f"MAE Test: {mae_test:.4f}")
 print(f"Acc Exacta: {exact_acc(y_test, y_pred):.1%}")
 print(f"Acc ±1: {tol_acc(y_test, y_pred):.1%}")
-
 plt.figure(figsize=(10, 8))
 plt.scatter(y_test, y_pred, alpha=0.6, color='royalblue', s=50, edgecolors='darkblue', linewidth=0.5)
 plt.plot([1, 20], [1, 20], 'r--', lw=3, label='Perfecto (pred = real)', alpha=0.9)
@@ -223,7 +226,6 @@ plt.plot([1, 20], [0, 19], 'orange', lw=2, linestyle=':', alpha=0.8, label='Marg
 
 # Zona de la tolerancia de +- posición implementada
 plt.fill_between([1, 20], [0, 19], [2, 21], color='orange', alpha=0.15, label='Zona ±1 posición')
-
 plt.xlabel('Posición Real 2024', fontsize=12, fontweight='bold')
 plt.ylabel('Posición Predicha', fontsize=12, fontweight='bold')
 plt.title(f'Predicción vs Realidad 2024 - {mejor_modelo_nombre}\nMAE: {mae_test:.2f}', fontsize=14, fontweight='bold')
