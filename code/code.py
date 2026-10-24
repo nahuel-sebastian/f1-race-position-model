@@ -229,6 +229,12 @@ mae_test = mean_absolute_error(y_test, y_pred)
 print(f"MAE Test: {mae_test:.4f}")
 print(f"Acc Exacta: {exact_acc(y_test, y_pred):.1%}")
 print(f"Acc ±1: {tol_acc(y_test, y_pred):.1%}")
+
+# Referencia sin modelo: la posición media de cada constructor en las temporadas de entrenamiento
+media_constructor = train_df.groupby('Constructor')['Position'].mean()
+y_ref = X_test['Constructor'].map(media_constructor).fillna(y_train.mean()).to_numpy()
+print(f"Referencia (media del constructor): MAE {mean_absolute_error(y_test, y_ref):.4f}, "
+      f"Acc Exacta {exact_acc(y_test, y_ref):.1%}, Acc ±1 {tol_acc(y_test, y_ref):.1%}")
 plt.figure(figsize=(10, 8))
 plt.scatter(y_test, y_pred, alpha=0.6, color='royalblue', s=50, edgecolors='darkblue', linewidth=0.5)
 plt.plot([1, 20], [1, 20], 'r--', lw=3, label='Perfecto (pred = real)', alpha=0.9)
