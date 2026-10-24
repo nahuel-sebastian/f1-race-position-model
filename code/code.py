@@ -50,6 +50,14 @@ datos = datos.merge(vueltas_max, on=['Season', 'Circuit'], how='left')
 mask_finished = datos['Laps'] >= (datos['Max_Laps'] - 1)
 datos = datos[mask_finished].copy()
 datos.drop(columns=['Max_Laps'], inplace=True)
+
+# Una fila por piloto y carrera: el CSV trae una fila por stint, así que cada
+# resultado aparecía repetido tantas veces como stints y pesaba más en el
+# entrenamiento y en las métricas. Las demás variables son de carrera; de los
+# stints se conserva el primero (neumático de salida y vuelta de la primera parada)
+datos = datos.sort_values(['Season', 'Round', 'Driver', 'Stint'])
+datos = datos.drop_duplicates(subset=['Season', 'Round', 'Driver'], keep='first')
+
 datos.drop(columns=["Location", "Country", "Date", "Round", "Race Name", "Time_of_race", 
                    "Total Pit Stops", "Fast Lap Attempts"], inplace=True, errors='ignore')
 
