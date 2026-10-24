@@ -22,7 +22,7 @@ from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
 from sklearn.impute import SimpleImputer
 from sklearn.preprocessing import StandardScaler, MinMaxScaler, RobustScaler, OneHotEncoder
-from sklearn.model_selection import cross_val_score, RandomizedSearchCV, TimeSeriesSplit
+from sklearn.model_selection import cross_val_score, RandomizedSearchCV
 from sklearn.neighbors import KNeighborsRegressor
 from scipy.stats import randint, uniform
 import warnings
@@ -75,6 +75,13 @@ X_test = test_df[num_cols + cat_cols].copy()
 y_test = test_df['Position']
 print(f"Train: {X_train.shape[0]}, Test: {X_test.shape[0]}")
 
+# Validación cruzada temporal por temporadas: cada fold entrena con las temporadas
+# anteriores y valida con la siguiente (2020, 2021, 2022 y 2023), así nunca se
+# entrena con carreras posteriores a las que se evalúan
+temporadas_train = train_df['Season'].to_numpy()
+cv_temporal = [(np.where(temporadas_train < t)[0], np.where(temporadas_train == t)[0])
+               for t in range(2020, 2024)]
+
 # Análisis de la colinealidad de las variables restantes del dataset
 print("\nMULTICOLINEALIDAD")
 corr_matrix = train_df[num_cols].corr()
@@ -100,14 +107,13 @@ scalers = [StandardScaler(), MinMaxScaler(), RobustScaler()]
 imputers = [SimpleImputer(strategy="mean"), SimpleImputer(strategy="median")]
 mejor_config_pre = {'scaler': None, 'imputer': None, 'score': np.inf}
 
-tscv_pre = TimeSeriesSplit(n_splits=3)
 for scaler in scalers:
     for imputer in imputers:
         num_trans = Pipeline([("imputer", imputer), ("scaler", scaler)])
         cat_trans = Pipeline([("enc", OneHotEncoder(handle_unknown="ignore"))])
         pre = ColumnTransformer([("num", num_trans, num_cols), ("cat", cat_trans, cat_cols)])
         pipe = Pipeline([("pre", pre), ("model", KNeighborsRegressor(n_neighbors=5))])
-        scores = cross_val_score(pipe, X_train, y_train, cv=tscv_pre, 
+        scores = cross_val_score(pipe, X_train, y_train, cv=cv_temporal, 
                                scoring="neg_mean_absolute_error", n_jobs=-1)
         mae = -scores.mean()
         if mae < mejor_config_pre['score']:
@@ -133,18 +139,17 @@ scorer_exact = make_scorer(exact_acc)
 scorer_tol = make_scorer(tol_acc)
 
 resultados_modelos = {}
-tscv = TimeSeriesSplit(n_splits=4)
 
 # Entranamiento y optimización de hiperparámetros de random forest 
 print("Random Forest")
 rf_pipe = Pipeline([("pre", preprocesador), ("model", RandomForestRegressor(random_state=SEED, n_jobs=-1))])
 rf_params = {"model__n_estimators": randint(200, 600), "model__max_depth": randint(10, 25),
             "model__min_samples_leaf": randint(1, 8), "model__max_features": ["sqrt", "log2"]}
-rf_search = RandomizedSearchCV(rf_pipe, rf_params, n_iter=25, cv=3, 
+rf_search = RandomizedSearchCV(rf_pipe, rf_params, n_iter=25, cv=cv_temporal, 
                               scoring="neg_mean_absolute_error", random_state=SEED, n_jobs=-1)
 rf_search.fit(X_train, y_train)
 best_rf = rf_search.best_estimator_
-acc_rf_exact = cross_val_score(best_rf, X_train, y_train, cv=3, scoring=scorer_exact, n_jobs=-1).mean()
+acc_rf_exact = cross_val_score(best_rf, X_train, y_train, cv=cv_temporal, scoring=scorer_exact, n_jobs=-1).mean()
 resultados_modelos['RF'] = {'pipe': best_rf, 'mae_cv': -rf_search.best_score_, 'acc_exact': acc_rf_exact}
 
 # Entranamiento y optimización de hiperparámetros de XgBoost
@@ -152,11 +157,11 @@ print("XGBoost")
 xgb_pipe = Pipeline([("pre", preprocesador), ("model", XGBRegressor(random_state=SEED, n_jobs=-1, tree_method="hist"))])
 xgb_params = {"model__n_estimators": randint(200, 500), "model__learning_rate": uniform(0.01, 0.2),
              "model__max_depth": randint(3, 10), "model__subsample": uniform(0.7, 0.3)}
-xgb_search = RandomizedSearchCV(xgb_pipe, xgb_params, n_iter=30, cv=3, 
+xgb_search = RandomizedSearchCV(xgb_pipe, xgb_params, n_iter=30, cv=cv_temporal, 
                                scoring="neg_mean_absolute_error", random_state=SEED, n_jobs=-1)
 xgb_search.fit(X_train, y_train)
 best_xgb = xgb_search.best_estimator_
-acc_xgb_exact = cross_val_score(best_xgb, X_train, y_train, cv=3, scoring=scorer_exact, n_jobs=-1).mean()
+acc_xgb_exact = cross_val_score(best_xgb, X_train, y_train, cv=cv_temporal, scoring=scorer_exact, n_jobs=-1).mean()
 resultados_modelos['XGB'] = {'pipe': best_xgb, 'mae_cv': -xgb_search.best_score_, 'acc_exact': acc_xgb_exact}
 
 # Entranamiento y optimización de hiperparámetros de HistGradientBoosting
@@ -164,11 +169,11 @@ print("HistGradientBoosting")
 hgb_pipe = Pipeline([("pre", preprocesador), ("model", HistGradientBoostingRegressor(random_state=SEED))])
 hgb_params = {"model__max_iter": randint(200, 400), "model__learning_rate": uniform(0.05, 0.15),
              "model__max_depth": randint(5, 12)}
-hgb_search = RandomizedSearchCV(hgb_pipe, hgb_params, n_iter=30, cv=3, 
+hgb_search = RandomizedSearchCV(hgb_pipe, hgb_params, n_iter=30, cv=cv_temporal, 
                                scoring="neg_mean_absolute_error", random_state=SEED, n_jobs=-1)
 hgb_search.fit(X_train, y_train)
 best_hgb = hgb_search.best_estimator_
-acc_hgb_exact = cross_val_score(best_hgb, X_train, y_train, cv=3, scoring=scorer_exact, n_jobs=-1).mean()
+acc_hgb_exact = cross_val_score(best_hgb, X_train, y_train, cv=cv_temporal, scoring=scorer_exact, n_jobs=-1).mean()
 resultados_modelos['HGB'] = {'pipe': best_hgb, 'mae_cv': -hgb_search.best_score_, 'acc_exact': acc_hgb_exact}
 
 # Tablas comparativas de resultados de cada uno de los modelos  
